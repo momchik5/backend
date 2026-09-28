@@ -1,9 +1,7 @@
 var builder = WebApplication.CreateBuilder(args);
+builder.WebHost.UseUrls("http://localhost:5177");
 
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-
-// Настройка CORS для Angular
+// 1. Настройка CORS для Angular
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAngular", policy =>
@@ -14,23 +12,27 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Добавляем поддержку сериализации JSON для DTO в Minimal API
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNameCaseInsensitive = true;
+});
+
 var app = builder.Build();
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
+// 2. Подключаем CORS строго до эндпоинтов
 app.UseCors("AllowAngular");
 
-record DataDto(string Text);
+string filePath = Path.Combine(Directory.GetCurrentDirectory(), "data.txt");
 
-// v1.0: Сохранение данных в файл data.txt
+// 3. POST эндпоинт (v1.0)
 app.MapPost("/api/data", async (DataDto dto) =>
 {
-    await File.WriteAllTextAsync("data.txt", dto.Text ?? string.Empty);
+    await File.WriteAllTextAsync(filePath, dto.Text ?? string.Empty);
     return Results.Ok(new { message = "Данные успешно сохранены в data.txt" });
 });
 
 app.Run();
+
+// DTO объявляется строго ПОСЛЕ app.Run()
+record DataDto(string Text);
